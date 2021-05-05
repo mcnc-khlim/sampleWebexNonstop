@@ -64,9 +64,15 @@ document.querySelector('#start').addEventListener('click', () => {
     alert('mdeiaDevices 사용 불가 상태');
   }
 
-  initWebex();
+  initWebex()
 });
 
+function getNewError(name, error) {
+  let err = new Error(error || '정확한 원인을 알 수 없음');
+  err.name = name;
+
+  return err;
+}
 
 function initWebex() {
   console.log('Authentication#initWebex()');
@@ -92,50 +98,70 @@ function initWebex() {
     console.log('Authentication#initWebex() :: Webex Ready');
     document.querySelector('#resultInit').innerHTML = 'success init';
 
-    register();
+    runWebex();
   });
+}
+
+async function runWebex() {
+  try {
+    await register();
+    await createMeeting();
+    // getMediaStreams(mediaSettings, {});
+    console.log('@@@@@@@@@@@@@');
+  } catch(e) {
+    console.log('###################1');
+    console.log(e.name);
+    console.log('###################2');
+    console.log(e);
+  }
 }
 
 function register() {
   console.log('Authentication#register()');
 
-  webex.meetings.register()
-    .then(() => {
-      console.log('Authentication#register() :: successfully registered');
-    })
-    .catch((error) => {
-      console.warn('Authentication#register() :: error registering', error);
-    })
-    .finally(() => {
-      document.querySelector('#resultRegister').innerHTML = webex.meetings.registered ? 'success register' : 'fail register';
+  return new Promise((resolve, reject) => {
+    webex.meetings.register()
+      .then(() => {
+        console.log('Authentication#register() :: successfully registered');
+        document.querySelector('#resultRegister').innerHTML = 'success register';
 
-      if (webex.meetings.registered) {
-        createMeeting();
-      }
-    });
+        webex.meetings.on('meeting:added', (m) => {
+          const {type} = m;
+      
+          if (type === 'INCOMING') {
+            const newMeeting = m.meeting;
+      
+            newMeeting.acknowledge(type);
+          }
+        });
 
-  webex.meetings.on('meeting:added', (m) => {
-    const {type} = m;
+        if (webex.meetings.registered) {
+          resolve();
+        } else {
+          reject(getNewError('register_then'));
+        }
+      })
+      .catch((error) => {
+        console.warn('Authentication#register() :: error registering', error);
+        document.querySelector('#resultRegister').innerHTML = 'fail register';
 
-    if (type === 'INCOMING') {
-      const newMeeting = m.meeting;
-
-      newMeeting.acknowledge(type);
-    }
+        reject(getNewError('register_catch', error));
+      });
   });
 }
 
 function createMeeting() {
-  webex.meetings.create(sipAddress)
-    .then((meeting) => {
-      meetingId = meeting.id;
-      
-      getMediaStreams(mediaSettings, {});
-    })
-    .catch((error) => {
-      console.log('createMeeting catch');
-      console.wran(error);
-    });
+  return new Promise((resolve, reject) => {
+    webex.meetings.create(sipAddress)
+      .then((meeting) => {
+        meetingId = meeting.id;
+        
+        resolve();
+      })
+      .catch((error) => {
+        reject(getNewError('createMeeting_catch', error));
+      });
+  });
 }
 
 function getCurrentMeeting() {
