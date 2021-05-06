@@ -65,7 +65,7 @@ document.querySelector('#start').addEventListener('click', () => {
     console.warn('navigator.mdeiaDevices객체가 없어 카메라 및 오디오 동작이 안될 수 있습니다.');
   }
 
-  initWebex()
+  initWebex();
 });
 
 document.querySelector('#leaveMeeting').addEventListener('click', () => {
@@ -82,6 +82,16 @@ function printLog(content) {
   console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
 }
 
+/*
+  에러코드 분류
+    [01] : register
+    [02] : createMeeting
+    [03] : getMediaStreams
+    [04] : joinMeeting
+    [05] : addMedia
+    [06] : leaveMeeting
+    [07] : toggleSendAudio
+ */
 function printError(e, doAlert) {
   console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
   console.log('catched error : ', e.name);
@@ -174,14 +184,14 @@ function register() {
           printLog('register done');
           resolve();
         } else {
-          reject(getNewError('register_then'));
+          reject(getNewError('[01]register_then'));
         }
       })
       .catch((error) => {
         console.warn('Authentication#register() :: error registering', error);
         document.querySelector('#resultRegister').innerHTML = 'fail register';
 
-        reject(getNewError('register_catch', error));
+        reject(getNewError('[01]register_catch', error));
       });
   });
 }
@@ -198,7 +208,7 @@ function createMeeting() {
         resolve();
       })
       .catch((error) => {
-        reject(getNewError('createMeeting_catch', error));
+        reject(getNewError('[02]createMeeting_catch', error));
       });
   });
 }
@@ -216,12 +226,11 @@ function getMediaStreams(mediaSettings, audioVideoInputDevices) {
   return new Promise((resolve, reject) => {
     const meeting = getCurrentMeeting();
   
-  
     if (!meeting) {
       console.log('MeetingControls#getMediaStreams() :: no valid meeting object!');
   
       // return Promise.reject(new Error('No valid meeting object.'));
-      return reject(getNewError('getMediaStreams_checkMeeting', new Error('invalid meeting')));
+      return reject(getNewError('[03]getMediaStreams_checkMeeting', new Error('invalid meeting')));
     }
   
     // Get local media streams
@@ -252,7 +261,7 @@ function getMediaStreams(mediaSettings, audioVideoInputDevices) {
         console.log('MeetingControls#getMediaStreams() :: Error getting streams!');
   
         // return Promise.reject(error);
-        return reject(getNewError('getMediaStreams_catch', error));
+        return reject(getNewError('[03]getMediaStreams_catch', error));
       });
   });
 }
@@ -264,7 +273,7 @@ function joinMeeting() {
     const meeting = webex.meetings.getAllMeetings()[meetingId];
 
     if (!meeting) {
-      reject(getNewError('joinMeeting_checkMeeting', new Error('invalid meeting')));
+      reject(getNewError('[04]joinMeeting_checkMeeting', new Error('invalid meeting')));
     }
     const resourceId = webex.devicemanager._pairedDevice ?
       webex.devicemanager._pairedDevice.identity.id :
@@ -286,9 +295,9 @@ function joinMeeting() {
       })
       .catch((error) => {
         if (error.stack.toString().indexOf('started yet') > -1) {
-          reject(getNewError('joinMeeting_catch_notStartedMeeting'));
+          reject(getNewError('[04]joinMeeting_catch_notStartedMeeting'));
         } else {
-          reject(getNewError('joinMeeting_catch', error));
+          reject(getNewError('[04]joinMeeting_catch', error));
         }
       }); 
   });
@@ -305,7 +314,7 @@ function addMedia() {
 
     if (!meeting) {
       console.log('MeetingStreams#addMedia() :: no valid meeting object!');
-      reject(getNewError('addMedia_checkMeeting', new Error('invalid meeting')));
+      reject(getNewError('[05]addMedia_checkMeeting', new Error('invalid meeting')));
     }
 
     meeting.addMedia({
@@ -318,7 +327,7 @@ function addMedia() {
       resolve();
     }).catch((error) => {
       console.log('MeetingStreams#addMedia() :: Error adding media!');
-      reject(getNewError('addMedia_catch', error));
+      reject(getNewError('[05]addMedia_catch', error));
     });
 
     // Wait for media in order to show video/share
@@ -361,13 +370,13 @@ function leaveMeeting() {
 
   try {
     if (!meetingId) {
-      throw getNewError('leaveMeeting_checkMeetingId', new Error('undefined meetingId'));
+      throw getNewError('[06]leaveMeeting_checkMeetingId', new Error('undefined meetingId'));
     }
   
     const meeting = webex.meetings.getAllMeetings()[meetingId];
   
     if (!meeting) {
-      throw getNewError('addMedia_checkMeeting', new Error('invalid meeting'));
+      throw getNewError('[06]addMedia_checkMeeting', new Error('invalid meeting'));
     }
   
     meeting.leave()
@@ -379,7 +388,7 @@ function leaveMeeting() {
         printLog('leaveMeeting done');
       });
   } catch(e) {
-    printError(e, true);
+    printError(e);
   }
 }
 
@@ -388,14 +397,14 @@ function toggleSendAudio() {
 
   try {
     if (!meetingId) {
-      throw getNewError('leaveMeeting_checkMeetingId', new Error('undefined meetingId'));
+      throw getNewError('[07]leaveMeeting_checkMeetingId', new Error('undefined meetingId'));
     }
 
     const meeting = getCurrentMeeting();
   
     console.log('MeetingControls#toggleSendAudio()');
     if (!meeting) {
-      throw getNewError('addMedia_checkMeeting', new Error('invalid meeting'));
+      throw getNewError('[07]addMedia_checkMeeting', new Error('invalid meeting'));
     }
   
     if (meeting.isAudioMuted()) {
@@ -407,7 +416,7 @@ function toggleSendAudio() {
           printLog('toggleSendAudio done');
         })
         .catch((error) => {
-          throw getNewError('toggleSendAudio_unmuteAudio_catch', error);
+          throw getNewError('[07]toggleSendAudio_unmuteAudio_catch', error);
         });
     }
     else {
@@ -419,7 +428,7 @@ function toggleSendAudio() {
           printLog('toggleSendAudio done');
         })
         .catch((error) => {
-          throw getNewError('toggleSendAudio_muteAudio_catch', error);
+          throw getNewError('[07]toggleSendAudio_muteAudio_catch', error);
         });
     }
   } catch(e) {
