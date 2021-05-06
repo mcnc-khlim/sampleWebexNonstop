@@ -295,7 +295,7 @@ function addMedia() {
           meetingStreamsRemoteShare.srcObject = media.stream;
           break;
         default :
-          console.log(mdeia.type);
+          console.log(media.type);
           break;
         /* case 'localShare':
           meetingStreamsLocalShare.srcObject = media.stream;
