@@ -62,7 +62,7 @@ document.querySelector('#start').addEventListener('click', () => {
   sipAddress = inputSipAddress.value;
 
   if (navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    alert('navigator.mdeiaDevices객체가 없어 카메라 및 오디오 동작이 안될 수 있습니다.');
+    console.warn('navigator.mdeiaDevices객체가 없어 카메라 및 오디오 동작이 안될 수 있습니다.');
   }
 
   initWebex()
@@ -76,6 +76,23 @@ toggleSendAudioButton.addEventListener('click', () => {
   toggleSendAudio();
 });
 
+function printLog(content) {
+  console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
+  console.log(content);
+  console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
+}
+
+function printError(e, doAlert) {
+  console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
+  console.log('catched error : ', e.name);
+  console.log(e);
+  console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
+
+  if (doAlert) {
+    alert(e.name.substr(0,4) + '_라이브 참석에 실패했습니다.\n라이브가 보이지 않으면 뒤로가기 후 재입장하거나 앱을 재실행 해주세요.');
+  }
+}
+
 function getNewError(name, error) {
   let err = new Error(error || '정확한 원인을 알 수 없음');
   err.name = name;
@@ -84,6 +101,7 @@ function getNewError(name, error) {
 }
 
 function initWebex() {
+  printLog('initWebex start');
   console.log('Authentication#initWebex()');
 
   webex = window.webex = Webex.init({
@@ -104,6 +122,7 @@ function initWebex() {
   });
 
   webex.once('ready', () => {
+    printLog('initWebex done');
     console.log('Authentication#initWebex() :: Webex Ready');
     document.querySelector('#resultInit').innerHTML = 'success init';
 
@@ -113,21 +132,20 @@ function initWebex() {
 
 async function runWebex() {
   try {
+    printLog('runWebex start');
     await register();
     await createMeeting();
     await getMediaStreams(mediaSettings, {});
     await joinMeeting();
     await addMedia();
-    console.log('@@@@@@@@@@@@@');
+    printLog('runWebex done');
   } catch(e) {
-    console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
-    console.log('catched error : ', e.name);
-    console.log(e);
-    console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
+    printError(e, true);
   }
 }
 
 function register() {
+  printLog('register start');
   console.log('Authentication#register()');
 
   return new Promise((resolve, reject) => {
@@ -137,6 +155,7 @@ function register() {
         document.querySelector('#resultRegister').innerHTML = 'success register';
 
         webex.meetings.on('meeting:added', (m) => {
+          printLog('register meeting:added');
           const {type} = m;
       
           if (type === 'INCOMING') {
@@ -145,8 +164,14 @@ function register() {
             newMeeting.acknowledge(type);
           }
         });
+        webex.meetings.on('meeting:removed', () => {
+          printLog('register meeting:removed');
+          // 호스트가 미팅 종료 시 발생 (호스트가 미팅 나가기 선택 시 감지 안됨)
+          alert('라이브 방송이 종료되었습니다.');
+        });
 
         if (webex.meetings.registered) {
+          printLog('register done');
           resolve();
         } else {
           reject(getNewError('register_then'));
@@ -162,11 +187,14 @@ function register() {
 }
 
 function createMeeting() {
+  printLog('createMeeting start');
+
   return new Promise((resolve, reject) => {
     webex.meetings.create(sipAddress)
       .then((meeting) => {
         meetingId = meeting.id;
         
+        printLog('createMeeting done');
         resolve();
       })
       .catch((error) => {
@@ -182,6 +210,7 @@ function getCurrentMeeting() {
 }
 
 function getMediaStreams(mediaSettings, audioVideoInputDevices) {
+  printLog('getMediaStreams start');
   console.log('MeetingControls#getMediaStreams()');
 
   return new Promise((resolve, reject) => {
@@ -215,6 +244,7 @@ function getMediaStreams(mediaSettings, audioVideoInputDevices) {
           meetingStreamsLocalVideo.srcObject = localStream;
         }
   
+        printLog('getMediaStreams done');
         // return {localStream};
         return resolve();
       })
@@ -228,6 +258,8 @@ function getMediaStreams(mediaSettings, audioVideoInputDevices) {
 }
 
 function joinMeeting() {
+  printLog('joinMeeting start');
+
   return new Promise((resolve, reject) => {
     const meeting = webex.meetings.getAllMeetings()[meetingId];
 
@@ -249,15 +281,22 @@ function joinMeeting() {
           meeting.sipUri ||
           meeting.id;
         
+        printLog('joinMeeting done');
         resolve();
       })
       .catch((error) => {
-        reject(getNewError('joinMeeting_catch', error));
+        if (error.stack.toString().indexOf('started yet') > -1) {
+          reject(getNewError('joinMeeting_catch_notStartedMeeting'));
+        } else {
+          reject(getNewError('joinMeeting_catch', error));
+        }
       }); 
   });
 }
 
 function addMedia() {
+  printLog('addMedia start');
+
   return new Promise((resolve, reject) => {
     const meeting = getCurrentMeeting();
     const [localStream, localShare] = currentMediaStreams;
@@ -274,6 +313,7 @@ function addMedia() {
       localStream,
       mediaSettings: mediaSettings
     }).then(() => {
+      printLog('addMedia done');
       console.log('MeetingStreams#addMedia() :: successfully added media!');
       resolve();
     }).catch((error) => {
@@ -283,6 +323,8 @@ function addMedia() {
 
     // Wait for media in order to show video/share
     meeting.on('media:ready', (media) => {
+      printLog('addMedia media:ready >>> ' + media.type);
+
       // eslint-disable-next-line default-case
       switch (media.type) {
         case 'remoteVideo':
@@ -295,7 +337,6 @@ function addMedia() {
           meetingStreamsRemoteShare.srcObject = media.stream;
           break;
         default :
-          console.log(media.type);
           break;
         /* case 'localShare':
           meetingStreamsLocalShare.srcObject = media.stream;
@@ -316,6 +357,8 @@ function cleanUpMedia(mediaElements) {
 }
 
 function leaveMeeting() {
+  printLog('leaveMeeting start');
+
   try {
     if (!meetingId) {
       throw getNewError('leaveMeeting_checkMeetingId', new Error('undefined meetingId'));
@@ -332,16 +375,17 @@ function leaveMeeting() {
         document.querySelector('#resultLeaveMeeting').innerHTML = 'success leave meeting';
         // eslint-disable-next-line no-use-before-define
         cleanUpMedia(htmlMediaElements);
+
+        printLog('leaveMeeting done');
       });
   } catch(e) {
-    console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
-    console.log('catched error : ', e.name);
-    console.log(e);
-    console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
+    printError(e, true);
   }
 }
 
 function toggleSendAudio() {
+  printLog('toggleSendAudio start');
+
   try {
     if (!meetingId) {
       throw getNewError('leaveMeeting_checkMeetingId', new Error('undefined meetingId'));
@@ -359,6 +403,8 @@ function toggleSendAudio() {
         .then(() => {
           toggleSendAudioButton.innerText = 'mute';
           console.log('MeetingControls#toggleSendAudio() :: Successfully unmuted audio!');
+
+          printLog('toggleSendAudio done');
         })
         .catch((error) => {
           throw getNewError('toggleSendAudio_unmuteAudio_catch', error);
@@ -369,15 +415,14 @@ function toggleSendAudio() {
         .then(() => {
           toggleSendAudioButton.innerText = 'unmute';
           console.log('MeetingControls#toggleSendAudio() :: Successfully muted audio!');
+
+          printLog('toggleSendAudio done');
         })
         .catch((error) => {
           throw getNewError('toggleSendAudio_muteAudio_catch', error);
         });
     }
   } catch(e) {
-    console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
-    console.log('catched error : ', e.name);
-    console.log(e);
-    console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
+    printError(e, true);
   }
 }
