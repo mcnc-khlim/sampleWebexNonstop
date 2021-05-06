@@ -7,7 +7,7 @@
 6. add media
  */
 // https://js.samples.s4d.io/browser-plugin-meetings/
-// OTJlZjUyZDUtMmQ4Yy00NzQxLWEyYWMtMWZhZmFhMTIwMDRhYmY5NTIxM2UtODZk_P0A1_3af8b8a3-c856-4011-9a72-790a0b303b19
+// NTk4MzllYWUtYTJiZC00MTMzLWFiMmItMDc2ZTBmYTg0NDRjMzBjYjc4NDItOWVk_P0A1_3af8b8a3-c856-4011-9a72-790a0b303b19
 // 1707421796@amoreapi.webex.com
 
 const inputAccessToken = document.querySelector('#accessToken');
@@ -49,6 +49,7 @@ const meetingStreamsLocalVideo = document.querySelector('#local-video');
 const meetingStreamsRemotelVideo = document.querySelector('#remote-video');
 const meetingStreamsRemoteAudio = document.querySelector('#remote-audio');
 const meetingStreamsRemoteShare = document.querySelector('#remote-screenshare');
+const toggleSendAudioButton = document.querySelector('#toggleSendAudio');
 const htmlMediaElements = [
   meetingStreamsLocalVideo,
   meetingStreamsRemotelVideo,
@@ -61,10 +62,18 @@ document.querySelector('#start').addEventListener('click', () => {
   sipAddress = inputSipAddress.value;
 
   if (navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    alert('mdeiaDevices 사용 불가 상태');
+    alert('navigator.mdeiaDevices객체가 없어 카메라 및 오디오 동작이 안될 수 있습니다.');
   }
 
   initWebex()
+});
+
+document.querySelector('#leaveMeeting').addEventListener('click', () => {
+  leaveMeeting();
+});
+
+toggleSendAudioButton.addEventListener('click', () => {
+  toggleSendAudio();
 });
 
 function getNewError(name, error) {
@@ -106,13 +115,15 @@ async function runWebex() {
   try {
     await register();
     await createMeeting();
-    // getMediaStreams(mediaSettings, {});
+    await getMediaStreams(mediaSettings, {});
+    await joinMeeting();
+    await addMedia();
     console.log('@@@@@@@@@@@@@');
   } catch(e) {
-    console.log('###################1');
-    console.log(e.name);
-    console.log('###################2');
+    console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
+    console.log('catched error : ', e.name);
     console.log(e);
+    console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
   }
 }
 
@@ -171,42 +182,202 @@ function getCurrentMeeting() {
 }
 
 function getMediaStreams(mediaSettings, audioVideoInputDevices) {
-  const meeting = getCurrentMeeting();
-
   console.log('MeetingControls#getMediaStreams()');
 
-  if (!meeting) {
-    console.log('MeetingControls#getMediaStreams() :: no valid meeting object!');
+  return new Promise((resolve, reject) => {
+    const meeting = getCurrentMeeting();
+  
+  
+    if (!meeting) {
+      console.log('MeetingControls#getMediaStreams() :: no valid meeting object!');
+  
+      // return Promise.reject(new Error('No valid meeting object.'));
+      return reject(getNewError('getMediaStreams_checkMeeting', new Error('invalid meeting')));
+    }
+  
+    // Get local media streams
+    return meeting.getMediaStreams(mediaSettings, audioVideoInputDevices)
+      .then(([localStream, localShare]) => {
+        console.log('MeetingControls#getMediaStreams() :: Successfully got following streams', localStream, localShare);
+        // Keep track of current stream in order to addMedia later.
+        const [currLocalStream, currLocalShare] = currentMediaStreams;
+  
+        /*
+         * In the event of updating only a particular stream, other streams return as undefined.
+         * We default back to previous stream in this case.
+         */
+        currentMediaStreams = [localStream || currLocalStream, localShare || currLocalShare];
+  
+        return currentMediaStreams;
+      })
+      .then(([localStream]) => {
+        if (localStream && mediaSettings.sendVideo) {
+          meetingStreamsLocalVideo.srcObject = localStream;
+        }
+  
+        // return {localStream};
+        return resolve();
+      })
+      .catch((error) => {
+        console.log('MeetingControls#getMediaStreams() :: Error getting streams!');
+  
+        // return Promise.reject(error);
+        return reject(getNewError('getMediaStreams_catch', error));
+      });
+  });
+}
 
-    return Promise.reject(new Error('No valid meeting object.'));
-  }
+function joinMeeting() {
+  return new Promise((resolve, reject) => {
+    const meeting = webex.meetings.getAllMeetings()[meetingId];
 
-  // Get local media streams
-  return meeting.getMediaStreams(mediaSettings, audioVideoInputDevices)
-    .then(([localStream, localShare]) => {
-      console.log('MeetingControls#getMediaStreams() :: Successfully got following streams', localStream, localShare);
-      // Keep track of current stream in order to addMedia later.
-      const [currLocalStream, currLocalShare] = currentMediaStreams;
+    if (!meeting) {
+      reject(getNewError('joinMeeting_checkMeeting', new Error('invalid meeting')));
+    }
+    const resourceId = webex.devicemanager._pairedDevice ?
+      webex.devicemanager._pairedDevice.identity.id :
+      undefined;
 
-      /*
-       * In the event of updating only a particular stream, other streams return as undefined.
-       * We default back to previous stream in this case.
-       */
-      currentMediaStreams = [localStream || currLocalStream, localShare || currLocalShare];
-
-      return currentMediaStreams;
+    meeting.join({
+      pin: '',
+      moderator: false,
+      moveToResource: false,
+      resourceId
     })
-    .then(([localStream]) => {
-      if (localStream && mediaSettings.sendVideo) {
-        meetingStreamsLocalVideo.srcObject = localStream;
-      }
+      .then(() => {
+        document.querySelector('#resultJoinMeeting').innerHTML = meeting.destination ||
+          meeting.sipUri ||
+          meeting.id;
+        
+        resolve();
+      })
+      .catch((error) => {
+        reject(getNewError('joinMeeting_catch', error));
+      }); 
+  });
+}
 
-      return {localStream};
-    })
-    .catch((error) => {
-      console.log('MeetingControls#getMediaStreams() :: Error getting streams!');
-      console.error();
+function addMedia() {
+  return new Promise((resolve, reject) => {
+    const meeting = getCurrentMeeting();
+    const [localStream, localShare] = currentMediaStreams;
 
-      return Promise.reject(error);
+    console.log('MeetingStreams#addMedia()');
+
+    if (!meeting) {
+      console.log('MeetingStreams#addMedia() :: no valid meeting object!');
+      reject(getNewError('addMedia_checkMeeting', new Error('invalid meeting')));
+    }
+
+    meeting.addMedia({
+      localShare,
+      localStream,
+      mediaSettings: mediaSettings
+    }).then(() => {
+      console.log('MeetingStreams#addMedia() :: successfully added media!');
+      resolve();
+    }).catch((error) => {
+      console.log('MeetingStreams#addMedia() :: Error adding media!');
+      reject(getNewError('addMedia_catch', error));
     });
+
+    // Wait for media in order to show video/share
+    meeting.on('media:ready', (media) => {
+      // eslint-disable-next-line default-case
+      switch (media.type) {
+        case 'remoteVideo':
+          meetingStreamsRemotelVideo.srcObject = media.stream;
+          break;
+        case 'remoteAudio':
+          meetingStreamsRemoteAudio.srcObject = media.stream;
+          break;
+        case 'remoteShare':
+          meetingStreamsRemoteShare.srcObject = media.stream;
+          break;
+        default :
+          console.log(mdeia.type);
+          break;
+        /* case 'localShare':
+          meetingStreamsLocalShare.srcObject = media.stream;
+          break; */
+      }
+    });
+  });
+}
+
+function cleanUpMedia(mediaElements) {
+  mediaElements.forEach((elem) => {
+    if (elem.srcObject) {
+      elem.srcObject.getTracks().forEach((track) => track.stop());
+      // eslint-disable-next-line no-param-reassign
+      elem.srcObject = null;
+    }
+  });
+}
+
+function leaveMeeting() {
+  try {
+    if (!meetingId) {
+      throw getNewError('leaveMeeting_checkMeetingId', new Error('undefined meetingId'));
+    }
+  
+    const meeting = webex.meetings.getAllMeetings()[meetingId];
+  
+    if (!meeting) {
+      throw getNewError('addMedia_checkMeeting', new Error('invalid meeting'));
+    }
+  
+    meeting.leave()
+      .then(() => {
+        document.querySelector('#resultLeaveMeeting').innerHTML = 'success leave meeting';
+        // eslint-disable-next-line no-use-before-define
+        cleanUpMedia(htmlMediaElements);
+      });
+  } catch(e) {
+    console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
+    console.log('catched error : ', e.name);
+    console.log(e);
+    console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
+  }
+}
+
+function toggleSendAudio() {
+  try {
+    if (!meetingId) {
+      throw getNewError('leaveMeeting_checkMeetingId', new Error('undefined meetingId'));
+    }
+
+    const meeting = getCurrentMeeting();
+  
+    console.log('MeetingControls#toggleSendAudio()');
+    if (!meeting) {
+      throw getNewError('addMedia_checkMeeting', new Error('invalid meeting'));
+    }
+  
+    if (meeting.isAudioMuted()) {
+      meeting.unmuteAudio()
+        .then(() => {
+          toggleSendAudioButton.innerText = 'mute';
+          console.log('MeetingControls#toggleSendAudio() :: Successfully unmuted audio!');
+        })
+        .catch((error) => {
+          throw getNewError('toggleSendAudio_unmuteAudio_catch', error);
+        });
+    }
+    else {
+      meeting.muteAudio()
+        .then(() => {
+          toggleSendAudioButton.innerText = 'unmute';
+          console.log('MeetingControls#toggleSendAudio() :: Successfully muted audio!');
+        })
+        .catch((error) => {
+          throw getNewError('toggleSendAudio_muteAudio_catch', error);
+        });
+    }
+  } catch(e) {
+    console.log('▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼');
+    console.log('catched error : ', e.name);
+    console.log(e);
+    console.log('▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲');
+  }
 }

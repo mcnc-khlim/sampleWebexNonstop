@@ -12,9 +12,13 @@
 		<div class="">
 			<input type="text" id="accessToken" value="" placeholder="access token" />
 			<input type="text" id="sipAddress" value="" placeholder="sip address" />
-			<button id="start">gogo</button> <br>
+			<button id="start">gogo</button>&nbsp;
+			<button id="toggleSendAudio">unmute</button>&nbsp;
+			<button id="leaveMeeting">leave</button> <br>
 			<span id="resultInit"></span> <br>
-			<span id="resultRegister"></span>
+			<span id="resultRegister"></span> <br>
+			<span id="resultJoinMeeting"></span> <br>
+			<span id="resultLeaveMeeting"></span>
 		</div>
 	</section>
 	<br>
@@ -44,28 +48,6 @@
 				</fieldset>
 			</div>
 		</form>
-		<br>
-		<fieldset>
-			<legend>Source Devices</legend>
-			<div>
-				<label class="context-info">Set Audio Input Device</label>
-				<select id="sd-audio-input-devices"></select>
-				<button type="button" onclick="setAudioInputDevice()">meeting.updateAudio()</button>
-				<label id="sd-audio-input-device-status"></label>
-			</div>
-			<div>
-				<label class="context-info">Set Audio Output Device</label>
-				<select id="sd-audio-output-devices"></select>
-				<button type="button" onclick="setAudioOutputDevice()">HTMLAudioElement.setSinkId()</button>
-				<label id="sd-audio-output-device-status"></label>
-			</div>
-			<div>
-				<label class="context-info">Set Video Input Device</label>
-				<select id="sd-video-input-devices"></select>
-				<button type="button" onclick="setVideoInputDevice()">meeting.updateVideo()</button>
-				<label id="sd-video-input-device-status"></label>
-			</div>
-		</fieldset>
 	</section>
 
 	<script src="./index_1.js"></script>
